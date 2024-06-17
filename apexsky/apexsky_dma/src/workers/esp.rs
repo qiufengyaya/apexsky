@@ -1,6 +1,14 @@
 use std::{sync::Arc, time::Duration};
 
 use apexsky::global_state::G_STATE;
+use apexsky_proto::pb::apexlegends::{
+    AimEntityData, AimTargetItem, AimTargetList, AimbotState, EspData, EspDataOption, EspSettings,
+    EspVisualsFlag, Loots, Matrix4x4, Players, SpectatorList,
+};
+use apexsky_proto::pb::esp_service::esp_service_server::{EspService, EspServiceServer};
+use apexsky_proto::pb::esp_service::{
+    EchoRequest, EchoResponse, GetLootsRequest, GetPlayersRequest,
+};
 use futures_util::FutureExt;
 use obfstr::obfstr as s;
 use parking_lot::RwLock;
@@ -8,19 +16,11 @@ use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio::{sync::watch, time::sleep};
 use tonic::codec::CompressionEncoding;
+use tonic::{transport::Server, Request, Response, Status};
 use tracing::instrument;
 
 use crate::game::player::GamePlayer;
-use crate::pb::apexlegends::{
-    AimEntityData, AimTargetItem, AimTargetList, AimbotState, EspData, EspDataOption, EspSettings,
-    EspVisualsFlag, Loots, Matrix4x4, Players, SpectatorList,
-};
 use crate::{SharedState, TaskChannels};
-
-use tonic::{transport::Server, Request, Response, Status};
-
-use crate::pb::esp_service::esp_service_server::{EspService, EspServiceServer};
-use crate::pb::esp_service::{EchoRequest, EchoResponse, GetLootsRequest, GetPlayersRequest};
 
 #[derive(Debug)]
 pub struct MyEspService {
@@ -201,7 +201,11 @@ impl EspService for MyEspService {
                     data_timestamp: lock.update_time,
                 }),
                 spectators: Some(SpectatorList {
-                    elements: lock.spectator_list.clone(),
+                    elements: [
+                        lock.spectator_list.clone(),
+                        lock.allied_spectator_list.clone(),
+                    ]
+                    .concat(),
                 }),
                 duration_tick: lock.update_duration.1.try_into().unwrap(),
                 duration_actions: lock.update_duration.0.try_into().unwrap(),
